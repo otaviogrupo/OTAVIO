@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,7 +7,6 @@ const supabase = createClient(
 
 export default async function handler(req, res) {
 
-  // 🔐 VERIFICAÇÃO META
   if (req.method === "GET") {
     const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
@@ -22,7 +20,7 @@ export default async function handler(req, res) {
       return res.sendStatus(403);
     }
   }
-  // 📩 RECEBER MENSAGEM
+
   if (req.method === "POST") {
     try {
       const body = req.body;
@@ -35,14 +33,14 @@ export default async function handler(req, res) {
       const from = msg.from;
       const text = msg.text?.body || "";
 
-      // 💾 SALVAR NO SUPABASE
+      // SALVAR
       await supabase.from("mensagens").insert({
         numero: from,
         mensagem: text,
         origem: "cliente"
       });
 
-      // 🤖 CHAMAR OPENAI
+      // OPENAI
       const ai = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -52,15 +50,17 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           model: "gpt-4o-mini",
           messages: [
-            { role: "system", content: "Você é atendente do Mercatto Delícia, responda de forma simpática e objetiva." },
+            { role: "system", content: "Você é atendente do Mercatto Delícia." },
             { role: "user", content: text }
           ]
         })
       }).then(r => r.json());
 
-      const resposta = ai.choices[0].message.content;
+      const resposta =
+        ai?.choices?.[0]?.message?.content ||
+        "Erro ao gerar resposta.";
 
-      // 💬 ENVIAR RESPOSTA
+      // ENVIAR
       await fetch(`https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
         headers: {
@@ -75,7 +75,6 @@ export default async function handler(req, res) {
         })
       });
 
-      // 💾 SALVAR RESPOSTA
       await supabase.from("mensagens").insert({
         numero: from,
         mensagem: resposta,
@@ -85,7 +84,7 @@ export default async function handler(req, res) {
       return res.sendStatus(200);
 
     } catch (err) {
-      console.error(err);
+      console.error("ERRO GERAL:", err);
       return res.sendStatus(500);
     }
   }
