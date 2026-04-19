@@ -44,12 +44,15 @@ const { data:proj } = await supabase
 projeto = proj?.[0]
 
 if(!projeto){
-  return res.json({
-    resposta:"❌ Projeto não encontrado",
-    preview:null
-  })
-}
 
+  const { data:novo } = await supabase
+    .from("projetos_n2")
+    .insert({ nome: projetoNome })
+    .select()
+
+  projeto = novo[0]
+
+}
 /* ================= BUSCAR ARQUIVOS ================= */
 
 const { data:arquivosDB } = await supabase
