@@ -4,7 +4,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dev AI • Construtor N2</title>
+<title>Dev AI • N2</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -30,25 +30,28 @@ body{
 }
 
 .header{
-  padding:20px;
-  font-size:20px;
+  padding:16px 24px;
   font-weight:800;
+  font-size:20px;
   background:#fff;
   border-bottom:1px solid var(--border);
 }
 
 .container{
-  padding:20px;
   display:grid;
-  grid-template-columns: 400px 1fr;
-  gap:20px;
+  grid-template-columns: 280px 420px 1fr;
+  gap:16px;
+  padding:16px;
+  height:calc(100vh - 70px);
 }
 
 .card{
-  background:var(--card);
+  background:#fff;
   border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:16px;
+  border-radius:14px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
 }
 
 input, select, textarea{
@@ -56,104 +59,112 @@ input, select, textarea{
   padding:10px;
   border-radius:8px;
   border:1px solid var(--border);
-  margin-top:6px;
-  margin-bottom:12px;
+  margin-top:5px;
+  margin-bottom:10px;
 }
 
 textarea{
-  height:220px;
   font-family:monospace;
 }
 
+.codigo{
+  height:100%;
+}
+
 button{
-  padding:10px 14px;
+  padding:10px;
   border:none;
   border-radius:8px;
   cursor:pointer;
   font-weight:600;
 }
 
-.btn-primary{ background:var(--primary); color:#fff }
-.btn-success{ background:var(--success); color:#fff }
-.btn-danger{ background:var(--danger); color:#fff }
+.btn-primary{ background:#2563eb; color:#fff }
+.btn-success{ background:#22c55e; color:#fff }
 
-.log{
-  background:#000;
-  color:#0f0;
-  font-family:monospace;
-  height:200px;
+.chat{
+  flex:1;
   overflow:auto;
+}
+
+.msg{
   padding:10px;
   border-radius:10px;
+  margin-bottom:10px;
+  font-size:13px;
 }
 
-.codigo{
-  height:400px;
-  font-family:monospace;
-}
+.user{ background:#dbeafe }
+.bot{ background:#dcfce7 }
 
-.badge{
-  padding:4px 8px;
-  border-radius:6px;
+.log{
+  height:120px;
+  background:#000;
+  color:#0f0;
   font-size:12px;
-  font-weight:600;
+  overflow:auto;
+  padding:8px;
+  border-radius:8px;
 }
 
-.js{ background:#facc15 }
-.html{ background:#38bdf8 }
+.status{
+  margin-top:10px;
+  font-size:13px;
+  color:var(--muted);
+}
 
 </style>
 
 </head>
 <body>
 
-<div class="header">💻 Dev AI • Construtor N2</div>
+<div class="header">💻 Dev AI • Agente N2</div>
 
 <div class="container">
 
-<!-- LADO ESQUERDO -->
+<!-- CHAT -->
+<div class="card">
+  <b>💬 Conversas</b>
+  <div class="chat" id="chat"></div>
+</div>
+
+<!-- CONTROLE -->
 <div class="card">
 
 <label>Projeto</label>
-<input id="projeto" placeholder="Digite ou selecione">
+<input id="projeto">
 
 <label>Caminho</label>
-<input id="caminho" placeholder="ex: api/whatsapp/send.js">
+<input id="caminho">
 
-<label>Nome do Arquivo</label>
+<label>Arquivo</label>
 <input id="arquivo">
 
 <label>Tipo</label>
 <select id="tipo">
-  <option value="js">JavaScript</option>
+  <option value="js">JS</option>
   <option value="html">HTML</option>
   <option value="css">CSS</option>
-  <option value="sql">SQL</option>
 </select>
 
-<button class="btn-success" onclick="salvarArquivo()">Salvar Arquivo</button>
+<button class="btn-success" onclick="salvar()">Salvar Arquivo</button>
 
 <hr>
 
-<label>Pergunta para o agente</label>
 <textarea id="pergunta" placeholder="Ex: corrige erro dessa api"></textarea>
 
-<button class="btn-primary" onclick="enviarAgente()">Executar Agente</button>
+<button class="btn-primary" onclick="enviar()">Executar Agente</button>
 
-<hr>
+<div class="status" id="status"></div>
 
 <div class="log" id="log"></div>
 
 </div>
 
-<!-- LADO DIREITO -->
+<!-- CODIGO -->
 <div class="card">
-
-<label>Código</label>
-<textarea id="codigo" class="codigo"></textarea>
-
-<div id="status"></div>
-
+  <b>🧾 Código</b>
+  <textarea id="codigo" class="codigo"></textarea>
 </div>
 
 </div>
@@ -167,89 +178,99 @@ const supabase = window.supabase.createClient(
 
 const ADMIN_TOKEN = "mercatto_admin_2026"
 
-/* ================= LOG ================= */
-
+/* LOG */
 function log(msg){
   const el = document.getElementById("log")
   el.innerHTML += msg + "<br>"
   el.scrollTop = el.scrollHeight
 }
 
-/* ================= AUTOCOMPLETE ================= */
+/* STATUS */
+function status(msg){
+  document.getElementById("status").innerText = msg
+}
 
-document.getElementById("projeto").addEventListener("input", async e=>{
-  const val = e.target.value
-
-  const { data } = await supabase
-    .from("projetos_n2")
-    .select("*")
-    .ilike("nome", `%${val}%`)
-    .limit(5)
-
-  if(data && data.length){
-    log("📁 Projetos encontrados: " + data.map(d=>d.nome).join(", "))
-  }
-})
-
-/* ================= SALVAR ================= */
-
-async function salvarArquivo(){
+/* SALVAR */
+async function salvar(){
 
 try{
 
-const nomeProjeto = document.getElementById("projeto").value
+status("Salvando...")
 
-let { data:projeto } = await supabase
+const nome = document.getElementById("projeto").value
+
+let { data:p } = await supabase
   .from("projetos_n2")
   .select("*")
-  .ilike("nome", `%${nomeProjeto}%`)
+  .ilike("nome", `%${nome}%`)
   .limit(1)
 
-if(!projeto || !projeto[0]){
-
-  const { data:novo } = await supabase
+if(!p || !p[0]){
+  const { data:n } = await supabase
     .from("projetos_n2")
-    .insert({ nome:nomeProjeto })
+    .insert({ nome })
     .select()
-
-  projeto = novo
-
-  log("📁 Projeto criado")
+  p = n
 }
 
-const codigo = document.getElementById("codigo").value
+await supabase.from("arquivos_projeto").insert({
+  projeto_id: p[0].id,
+  nome_arquivo: document.getElementById("arquivo").value,
+  caminho: document.getElementById("caminho").value,
+  linguagem: document.getElementById("tipo").value,
+  codigo: document.getElementById("codigo").value
+})
 
-await supabase
-  .from("arquivos_projeto")
-  .insert({
-    projeto_id: projeto[0].id,
-    nome_arquivo: document.getElementById("arquivo").value,
-    caminho: document.getElementById("caminho").value,
-    linguagem: document.getElementById("tipo").value,
-    codigo
-  })
-
-log("✅ Arquivo salvo")
+status("✅ Salvo com sucesso")
+log("Arquivo salvo")
 
 }catch(e){
-  log("❌ ERRO: " + e.message)
+  status("Erro")
+  log("ERRO: " + e.message)
 }
 
 }
 
-/* ================= AGENTE ================= */
+/* CHAT */
+async function carregarChat(){
 
-async function enviarAgente(){
+const projeto = document.getElementById("projeto").value
+if(!projeto) return
+
+const { data } = await supabase
+  .from("dev_conversas")
+  .select("*")
+  .eq("projeto", projeto)
+  .order("created_at",{ascending:true})
+  .limit(200)
+
+const chat = document.getElementById("chat")
+chat.innerHTML = ""
+
+data.forEach(m=>{
+  const div = document.createElement("div")
+  div.className = "msg " + (m.role === "user" ? "user" : "bot")
+  div.innerHTML = `<b>${m.role}</b><br>${m.mensagem}`
+  chat.appendChild(div)
+})
+
+chat.scrollTop = chat.scrollHeight
+
+}
+
+/* AGENTE */
+async function enviar(){
 
 try{
 
-log("🚀 Executando agente...")
+status("Executando agente...")
+log("Enviando...")
 
 const res = await fetch("/api/construtor",{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
-    "Authorization":"Bearer "+ADMIN_TOKEN
+    "Authorization":"Bearer "+TOKEN
   },
   body: JSON.stringify({
     projeto: document.getElementById("projeto").value,
@@ -260,27 +281,35 @@ const res = await fetch("/api/construtor",{
 const data = await res.json()
 
 if(data.erro){
-  log("❌ " + data.erro)
+  log("ERRO: " + data.erro)
   return
 }
 
 if(data.tipo === "alteracao"){
-  log("🛠️ Código alterado: " + data.descricao)
+  log("Código atualizado: " + data.descricao)
 }
 
 if(data.tipo === "criacao"){
-  log("📦 Novo arquivo criado: " + data.arquivo)
+  log("Novo arquivo: " + data.arquivo)
 }
 
 if(data.tipo === "resposta"){
-  log("🤖 " + data.resposta)
+  log(data.resposta)
 }
+
+status("Finalizado")
+
+setTimeout(carregarChat, 800)
 
 }catch(e){
-  log("❌ ERRO API: " + e.message)
+  log("ERRO API: " + e.message)
+  status("Erro")
 }
 
 }
+
+/* AUTO REFRESH */
+setInterval(carregarChat, 3000)
 
 </script>
 
