@@ -61,6 +61,7 @@ height:40px;
 border-radius:8px;
 border:none;
 padding:10px;
+resize:none;
 }
 
 button{
@@ -97,19 +98,19 @@ align-items:center;
 padding:10px;
 }
 
-/* TELA */
+/* FRAME */
 .frame{
 border:1px solid #ccc;
 background:#fff;
 }
 
 /* MODOS */
-.desktop{
+.frame.desktop{
 width:100%;
 height:100%;
 }
 
-.mobile{
+.frame.mobile{
 width:375px;
 height:667px;
 border-radius:20px;
@@ -149,7 +150,7 @@ box-shadow:0 10px 30px rgba(0,0,0,0.3);
 </div>
 
 <div class="preview-container">
-<iframe id="preview" class="frame desktop"></iframe>
+  <iframe id="preview" class="frame desktop"></iframe>
 </div>
 
 </div>
@@ -157,9 +158,8 @@ box-shadow:0 10px 30px rgba(0,0,0,0.3);
 <script>
 
 const TOKEN = "mercatto_admin_2026"
-let modoAtual = "desktop"
 
-/* CHAT UI */
+/* CHAT */
 function addMsg(role,text){
 
 const chat = document.getElementById("chat")
@@ -172,21 +172,23 @@ chat.appendChild(div)
 chat.scrollTop = chat.scrollHeight
 }
 
-/* TROCAR MODO */
+/* MODO */
 function modo(tipo){
 
-modoAtual = tipo
-
 const iframe = document.getElementById("preview")
-
 iframe.className = "frame " + tipo
 
 }
 
-/* ATUALIZAR PREVIEW */
+/* PREVIEW */
 function atualizarPreview(html){
 
 const iframe = document.getElementById("preview")
+
+if(!iframe){
+  console.error("iframe não encontrado")
+  return
+}
 
 const doc = iframe.contentWindow.document
 
@@ -207,8 +209,11 @@ if(!texto) return
 addMsg("user",texto)
 input.value=""
 
-/* typing */
-addMsg("bot","⏳ Processando...")
+/* loading */
+const loading = document.createElement("div")
+loading.className = "msg bot"
+loading.innerHTML = "⏳ Processando..."
+document.getElementById("chat").appendChild(loading)
 
 try{
 
@@ -216,7 +221,7 @@ const res = await fetch("/api/construtor",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
-"Authorization":"Bearer "+TOKEN
+"Authorization":"Bearer " + TOKEN
 },
 body:JSON.stringify({
 projeto:"default",
@@ -226,38 +231,19 @@ pergunta:texto
 
 const data = await res.json()
 
-document.querySelector(".bot:last-child").remove()
+loading.remove()
 
-/* RESPOSTA NORMAL */
-if(data.tipo === "resposta"){
-addMsg("bot",data.resposta)
-}
+/* MOSTRA RESPOSTA */
+addMsg("bot", data.resposta || "Erro")
 
-/* ALTERAÇÃO → ATUALIZA PREVIEW */
-if(data.tipo === "alteracao"){
-
-addMsg("bot","🛠️ Código atualizado")
-
+/* ATUALIZA PREVIEW SEMPRE */
 if(data.preview){
-atualizarPreview(data.preview)
-}
-
-}
-
-/* CRIAÇÃO */
-if(data.tipo === "criacao"){
-
-addMsg("bot","📦 Novo arquivo criado")
-
-if(data.preview){
-atualizarPreview(data.preview)
-}
-
+  atualizarPreview(data.preview)
 }
 
 }catch(e){
 
-document.querySelector(".bot:last-child").remove()
+loading.remove()
 addMsg("bot","❌ erro na API")
 
 }
