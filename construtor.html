@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dev AI • Construtor N2</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+
+:root{
+  --bg:#f4f6f9;
+  --card:#fff;
+  --border:#e5e7eb;
+  --text:#111827;
+  --muted:#6b7280;
+  --primary:#2563eb;
+  --success:#22c55e;
+  --danger:#ef4444;
+  --radius:14px;
+}
+
+body{
+  margin:0;
+  font-family:Inter;
+  background:var(--bg);
+}
+
+.header{
+  padding:20px;
+  font-size:20px;
+  font-weight:800;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+}
+
+.container{
+  padding:20px;
+  display:grid;
+  grid-template-columns: 400px 1fr;
+  gap:20px;
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+}
+
+input, select, textarea{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  margin-top:6px;
+  margin-bottom:12px;
+}
+
+textarea{
+  height:220px;
+  font-family:monospace;
+}
+
+button{
+  padding:10px 14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.btn-primary{ background:var(--primary); color:#fff }
+.btn-success{ background:var(--success); color:#fff }
+.btn-danger{ background:var(--danger); color:#fff }
+
+.log{
+  background:#000;
+  color:#0f0;
+  font-family:monospace;
+  height:200px;
+  overflow:auto;
+  padding:10px;
+  border-radius:10px;
+}
+
+.codigo{
+  height:400px;
+  font-family:monospace;
+}
+
+.badge{
+  padding:4px 8px;
+  border-radius:6px;
+  font-size:12px;
+  font-weight:600;
+}
+
+.js{ background:#facc15 }
+.html{ background:#38bdf8 }
+
+</style>
+
+</head>
+<body>
+
+<div class="header">💻 Dev AI • Construtor N2</div>
+
+<div class="container">
+
+<!-- LADO ESQUERDO -->
+<div class="card">
+
+<label>Projeto</label>
+<input id="projeto" placeholder="Digite ou selecione">
+
+<label>Caminho</label>
+<input id="caminho" placeholder="ex: api/whatsapp/send.js">
+
+<label>Nome do Arquivo</label>
+<input id="arquivo">
+
+<label>Tipo</label>
+<select id="tipo">
+  <option value="js">JavaScript</option>
+  <option value="html">HTML</option>
+  <option value="css">CSS</option>
+  <option value="sql">SQL</option>
+</select>
+
+<button class="btn-success" onclick="salvarArquivo()">Salvar Arquivo</button>
+
+<hr>
+
+<label>Pergunta para o agente</label>
+<textarea id="pergunta" placeholder="Ex: corrige erro dessa api"></textarea>
+
+<button class="btn-primary" onclick="enviarAgente()">Executar Agente</button>
+
+<hr>
+
+<div class="log" id="log"></div>
+
+</div>
+
+<!-- LADO DIREITO -->
+<div class="card">
+
+<label>Código</label>
+<textarea id="codigo" class="codigo"></textarea>
+
+<div id="status"></div>
+
+</div>
+
+</div>
+
+<script>
+
+const supabase = window.supabase.createClient(
+  "https://juzsvgxbmnpkzwrystfl.supabase.co",
+  "sb_publishable_lJgMwPqFHtHvO55U9ZIBsQ_4r-Qjz69"
+)
+
+const ADMIN_TOKEN = "mercatto_admin_2026"
+
+/* ================= LOG ================= */
+
+function log(msg){
+  const el = document.getElementById("log")
+  el.innerHTML += msg + "<br>"
+  el.scrollTop = el.scrollHeight
+}
+
+/* ================= AUTOCOMPLETE ================= */
+
+document.getElementById("projeto").addEventListener("input", async e=>{
+  const val = e.target.value
+
+  const { data } = await supabase
+    .from("projetos_n2")
+    .select("*")
+    .ilike("nome", `%${val}%`)
+    .limit(5)
+
+  if(data && data.length){
+    log("📁 Projetos encontrados: " + data.map(d=>d.nome).join(", "))
+  }
+})
+
+/* ================= SALVAR ================= */
+
+async function salvarArquivo(){
+
+try{
+
+const nomeProjeto = document.getElementById("projeto").value
+
+let { data:projeto } = await supabase
+  .from("projetos_n2")
+  .select("*")
+  .ilike("nome", `%${nomeProjeto}%`)
+  .limit(1)
+
+if(!projeto || !projeto[0]){
+
+  const { data:novo } = await supabase
+    .from("projetos_n2")
+    .insert({ nome:nomeProjeto })
+    .select()
+
+  projeto = novo
+
+  log("📁 Projeto criado")
+}
+
+const codigo = document.getElementById("codigo").value
+
+await supabase
+  .from("arquivos_projeto")
+  .insert({
+    projeto_id: projeto[0].id,
+    nome_arquivo: document.getElementById("arquivo").value,
+    caminho: document.getElementById("caminho").value,
+    linguagem: document.getElementById("tipo").value,
+    codigo
+  })
+
+log("✅ Arquivo salvo")
+
+}catch(e){
+  log("❌ ERRO: " + e.message)
+}
+
+}
+
+/* ================= AGENTE ================= */
+
+async function enviarAgente(){
+
+try{
+
+log("🚀 Executando agente...")
+
+const res = await fetch("/api/construtor",{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json",
+    "Authorization":"Bearer "+ADMIN_TOKEN
+  },
+  body: JSON.stringify({
+    projeto: document.getElementById("projeto").value,
+    pergunta: document.getElementById("pergunta").value
+  })
+})
+
+const data = await res.json()
+
+if(data.erro){
+  log("❌ " + data.erro)
+  return
+}
+
+if(data.tipo === "alteracao"){
+  log("🛠️ Código alterado: " + data.descricao)
+}
+
+if(data.tipo === "criacao"){
+  log("📦 Novo arquivo criado: " + data.arquivo)
+}
+
+if(data.tipo === "resposta"){
+  log("🤖 " + data.resposta)
+}
+
+}catch(e){
+  log("❌ ERRO API: " + e.message)
+}
+
+}
+
+</script>
+
+</body>
+</html>
