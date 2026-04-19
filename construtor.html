@@ -3,9 +3,9 @@
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Dev AI • Chat N2</title>
+<title>Dev AI • Studio</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
@@ -14,67 +14,53 @@
 body{
 margin:0;
 font-family:Inter;
-background:#e5ddd5;
+display:flex;
 height:100vh;
+overflow:hidden;
+}
+
+/* CHAT */
+.chat-area{
+width:35%;
+min-width:320px;
+background:#111;
+color:#fff;
 display:flex;
 flex-direction:column;
-}
-
-.header{
-background:#fff;
-padding:10px;
-display:flex;
-gap:10px;
-border-bottom:1px solid #ddd;
-}
-
-.avatar{
-width:40px;height:40px;border-radius:50%;
-background:#2563eb;color:#fff;
-display:flex;align-items:center;justify-content:center;
-font-weight:600;
 }
 
 .chat{
 flex:1;
 overflow:auto;
-padding:15px;
+padding:10px;
 display:flex;
 flex-direction:column;
 gap:10px;
 }
 
 .msg{
-max-width:80%;
 padding:10px;
 border-radius:10px;
+max-width:80%;
 font-size:14px;
 }
 
-.user{align-self:flex-end;background:#dcf8c6}
-.bot{align-self:flex-start;background:#fff}
-
-.time{
-font-size:10px;
-color:#666;
-margin-top:5px;
-text-align:right;
-}
+.user{align-self:flex-end;background:#2563eb}
+.bot{align-self:flex-start;background:#222}
 
 .input{
 display:flex;
-gap:8px;
+gap:5px;
 padding:10px;
-background:#f0f2f5;
+background:#000;
 }
 
 textarea{
 flex:1;
-border-radius:20px;
-padding:10px;
-border:1px solid #ddd;
-resize:none;
 height:40px;
+border-radius:8px;
+border:none;
+padding:10px;
 }
 
 button{
@@ -82,125 +68,198 @@ background:#2563eb;
 border:none;
 color:#fff;
 padding:10px;
-border-radius:20px;
+border-radius:8px;
 cursor:pointer;
 }
 
-.top-bar{
+/* PREVIEW */
+.preview-area{
+flex:1;
+background:#e5e7eb;
+display:flex;
+flex-direction:column;
+}
+
+/* TOPO */
+.preview-top{
+padding:10px;
+background:#fff;
 display:flex;
 gap:10px;
-padding:10px;
-background:#f0f2f5;
 border-bottom:1px solid #ddd;
 }
 
-input{
-padding:8px;
-border-radius:8px;
-border:1px solid #ddd;
+.preview-container{
+flex:1;
+display:flex;
+justify-content:center;
+align-items:center;
+padding:10px;
+}
+
+/* TELA */
+.frame{
+border:1px solid #ccc;
+background:#fff;
+}
+
+/* MODOS */
+.desktop{
+width:100%;
+height:100%;
+}
+
+.mobile{
+width:375px;
+height:667px;
+border-radius:20px;
+overflow:hidden;
+box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+/* RESPONSIVO */
+@media(max-width:900px){
+.chat-area{width:100%}
+.preview-area{display:none}
 }
 
 </style>
-</head>
 
+</head>
 <body>
 
-<div class="header">
-<div class="avatar">DEV</div>
-<div>
-<b>Agente Dev N2</b><br>
-<small>online</small>
-</div>
-</div>
-
-<div class="top-bar">
-<input id="projeto" placeholder="Projeto">
-<input id="arquivo" placeholder="Arquivo (opcional)">
-</div>
+<!-- CHAT -->
+<div class="chat-area">
 
 <div id="chat" class="chat"></div>
 
 <div class="input">
-<textarea id="msg" placeholder="Ex: corrige erro nessa api"></textarea>
+<textarea id="msg" placeholder="Ex: corrige esse código"></textarea>
 <button onclick="enviar()">Enviar</button>
+</div>
+
+</div>
+
+<!-- PREVIEW -->
+<div class="preview-area">
+
+<div class="preview-top">
+<button onclick="modo('desktop')">💻 Desktop</button>
+<button onclick="modo('mobile')">📱 Mobile</button>
+</div>
+
+<div class="preview-container">
+<iframe id="preview" class="frame desktop"></iframe>
+</div>
+
 </div>
 
 <script>
 
 const TOKEN = "mercatto_admin_2026"
+let modoAtual = "desktop"
 
-function hora(){
-const d=new Date()
-return d.getHours()+":"+d.getMinutes()
-}
-
+/* CHAT UI */
 function addMsg(role,text){
 
-const chat=document.getElementById("chat")
+const chat = document.getElementById("chat")
 
-const div=document.createElement("div")
-div.className="msg "+(role==="user"?"user":"bot")
-
-div.innerHTML=`
-${text}
-<div class="time">${hora()}</div>
-`
+const div = document.createElement("div")
+div.className = "msg " + (role==="user"?"user":"bot")
+div.innerHTML = text
 
 chat.appendChild(div)
-chat.scrollTop=chat.scrollHeight
+chat.scrollTop = chat.scrollHeight
 }
 
-/* ================= AGENTE ================= */
+/* TROCAR MODO */
+function modo(tipo){
 
+modoAtual = tipo
+
+const iframe = document.getElementById("preview")
+
+iframe.className = "frame " + tipo
+
+}
+
+/* ATUALIZAR PREVIEW */
+function atualizarPreview(html){
+
+const iframe = document.getElementById("preview")
+
+const doc = iframe.contentWindow.document
+
+doc.open()
+doc.write(html)
+doc.close()
+
+}
+
+/* ENVIAR */
 async function enviar(){
 
-const texto=document.getElementById("msg").value.trim()
+const input = document.getElementById("msg")
+const texto = input.value.trim()
+
 if(!texto) return
 
-const projeto=document.getElementById("projeto").value
-
 addMsg("user",texto)
-document.getElementById("msg").value=""
+input.value=""
 
 /* typing */
-const typing=document.createElement("div")
-typing.className="msg bot"
-typing.innerHTML="Pensando..."
-document.getElementById("chat").appendChild(typing)
+addMsg("bot","⏳ Processando...")
 
 try{
 
-const res=await fetch("/api/construtor",{
+const res = await fetch("/api/construtor",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
 "Authorization":"Bearer "+TOKEN
 },
 body:JSON.stringify({
-projeto,
+projeto:"default",
 pergunta:texto
 })
 })
 
-const data=await res.json()
+const data = await res.json()
 
-typing.remove()
+document.querySelector(".bot:last-child").remove()
 
-if(data.tipo==="alteracao"){
-addMsg("bot","🛠️ Código atualizado: "+data.descricao)
+/* RESPOSTA NORMAL */
+if(data.tipo === "resposta"){
+addMsg("bot",data.resposta)
 }
 
-else if(data.tipo==="criacao"){
-addMsg("bot","📦 Novo arquivo criado: "+data.arquivo)
+/* ALTERAÇÃO → ATUALIZA PREVIEW */
+if(data.tipo === "alteracao"){
+
+addMsg("bot","🛠️ Código atualizado")
+
+if(data.preview){
+atualizarPreview(data.preview)
 }
 
-else{
-addMsg("bot",data.resposta || "Erro")
+}
+
+/* CRIAÇÃO */
+if(data.tipo === "criacao"){
+
+addMsg("bot","📦 Novo arquivo criado")
+
+if(data.preview){
+atualizarPreview(data.preview)
+}
+
 }
 
 }catch(e){
-typing.remove()
+
+document.querySelector(".bot:last-child").remove()
 addMsg("bot","❌ erro na API")
+
 }
 
 }
