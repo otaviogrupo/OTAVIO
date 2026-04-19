@@ -264,50 +264,69 @@ async function enviar(){
 try{
 
 status("Executando agente...")
-log("Enviando...")
+log("🚀 Enviando para API...")
+
+const projeto = document.getElementById("projeto").value
+const pergunta = document.getElementById("pergunta").value
+
+if(!projeto || !pergunta){
+  log("❌ Preencha projeto e pergunta")
+  status("Faltando dados")
+  return
+}
 
 const res = await fetch("/api/construtor",{
   method:"POST",
   headers:{
     "Content-Type":"application/json",
-    "Authorization":"Bearer "+TOKEN
+    "Authorization":"Bearer " + ADMIN_TOKEN
   },
   body: JSON.stringify({
-    projeto: document.getElementById("projeto").value,
-    pergunta: document.getElementById("pergunta").value
+    projeto,
+    pergunta
   })
 })
 
+if(!res.ok){
+  const text = await res.text()
+  log("❌ ERRO HTTP: " + text)
+  status("Erro na API")
+  return
+}
+
 const data = await res.json()
 
+console.log("RESPOSTA:", data)
+
 if(data.erro){
-  log("ERRO: " + data.erro)
+  log("❌ " + data.erro)
+  status("Erro")
   return
 }
 
 if(data.tipo === "alteracao"){
-  log("Código atualizado: " + data.descricao)
+  log("🛠️ Código atualizado: " + data.descricao)
 }
 
 if(data.tipo === "criacao"){
-  log("Novo arquivo: " + data.arquivo)
+  log("📦 Novo arquivo: " + data.arquivo)
 }
 
 if(data.tipo === "resposta"){
-  log(data.resposta)
+  log("🤖 " + data.resposta)
 }
 
-status("Finalizado")
+status("✅ Finalizado")
 
 setTimeout(carregarChat, 800)
 
 }catch(e){
-  log("ERRO API: " + e.message)
+  console.error(e)
+  log("❌ ERRO: " + e.message)
   status("Erro")
 }
 
 }
-
 /* AUTO REFRESH */
 setInterval(carregarChat, 3000)
 
