@@ -24,256 +24,216 @@ if(req.headers.authorization !== `Bearer ${ADMIN_TOKEN}`){
 
 /* ================= BODY ================= */
 
-const body =
-typeof req.body === "string"
+const body = typeof req.body === "string"
 ? JSON.parse(req.body)
 : req.body
 
 const pergunta = body?.pergunta || ""
-const projetoNome = body?.projeto || ""
+const projetoNome = body?.projeto || "default"
 
 /* ================= BUSCAR PROJETO ================= */
 
 let projeto = null
 
-if(projetoNome){
+const { data:proj } = await supabase
+  .from("projetos_n2")
+  .select("*")
+  .ilike("nome", `%${projetoNome}%`)
+  .limit(1)
 
-  const { data } = await supabase
-    .from("projetos_n2")
-    .select("*")
-    .ilike("nome", `%${projetoNome}%`)
-    .limit(1)
-
-  projeto = data?.[0]
-}
+projeto = proj?.[0]
 
 /* ================= BUSCAR ARQUIVOS ================= */
 
 let arquivos = []
 
 if(projeto){
-
   const { data } = await supabase
     .from("arquivos_projeto")
     .select("*")
     .eq("projeto_id", projeto.id)
-    .order("atualizado_em", { ascending:false })
+    .order("atualizado_em",{ascending:false})
 
   arquivos = data || []
 }
 
-/* ================= FILTRO INTELIGENTE ================= */
+/* ================= CONTEXTO INTELIGENTE ================= */
 
-const texto = pergunta.toLowerCase()
+const LIMITE = 12000
 
-let arquivosSelecionados = arquivos
-
-// 🔥 tenta reduzir contexto automaticamente
-if(arquivos.length > 20){
-
-  arquivosSelecionados = arquivos.filter(a =>
-    texto.includes(a.nome_arquivo?.toLowerCase()) ||
-    texto.includes(a.caminho?.toLowerCase())
-  )
-
-  if(arquivosSelecionados.length === 0){
-    arquivosSelecionados = arquivos.slice(0, 20)
-  }
-}
-
-/* ================= LIMITAR TAMANHO ================= */
-
-const LIMITE_CODIGO = 12000 // caracteres por arquivo
-
-const arquivosContexto = arquivosSelecionados.map(a => ({
+const arquivosContexto = arquivos.slice(0,15).map(a => ({
   id: a.id,
   nome: a.nome_arquivo,
   caminho: a.caminho,
   linguagem: a.linguagem,
-  codigo: (a.codigo || "").slice(0, LIMITE_CODIGO)
+  codigo: (a.codigo || "").slice(0, LIMITE)
 }))
 
-/* ================= PROMPT INTERNO ================= */
+/* ================= PROMPT ================= */
 
-const PROMPT_DEV = `
-💻 AGENTE PROGRAMADOR N2
+const PROMPT = `
+Você é um engenheiro de software sênior.
 
-Você é um engenheiro de software nível sênior.
+Regras:
+- Sempre pensar como desenvolvedor real
+- Nunca retornar código parcial
+- Sempre retornar arquivo completo
+- Nunca quebrar funcionalidades existentes
 
-Você tem acesso a arquivos reais de código.
-
-🎯 SUA FUNÇÃO:
-
-- Corrigir bugs
-- Refatorar código
-- Melhorar performance
-- Criar novas funções
-- Ajustar APIs
-- Melhorar segurança
-
-📂 CONTEXTO:
-
-Você receberá arquivos com:
-- id
-- nome
-- caminho
-- linguagem
-- codigo
-
-⚠️ REGRAS CRÍTICAS:
-
-- Nunca inventar código fora do contexto
-- Sempre manter estrutura original
-- Nunca remover funcionalidades sem motivo
-- Sempre retornar código COMPLETO (arquivo inteiro)
-- Nunca retornar trecho parcial
-
-⚠️ FORMATO OBRIGATÓRIO:
-
-Se for alteração:
+Se modificar código:
 
 ALTERAR_CODIGO_JSON:
 {
-  "arquivo_id": "",
-  "codigo_novo": "",
-  "descricao": ""
+ "arquivo_id":"",
+ "codigo_novo":"",
+ "descricao":""
 }
 
-Se for criação:
+Se criar:
 
 CRIAR_ARQUIVO_JSON:
 {
-  "nome": "",
-  "caminho": "",
-  "linguagem": "",
-  "codigo": ""
+ "nome":"",
+ "caminho":"",
+ "linguagem":"",
+ "codigo":""
 }
 
-Se for análise:
-
-ANALISE_TECNICA:
-"texto aqui"
-
-⚠️ Nunca responder fora desses formatos quando aplicável
+Se só conversar:
+responda normalmente
 `
 
-/* ================= OPENAI ================= */
+/* ================= GPT ================= */
 
 const completion = await openai.chat.completions.create({
-
-  model: "gpt-4.1",
-  temperature: 0,
-
-  messages: [
-
-    {
-      role: "system",
-      content: PROMPT_DEV
-    },
-
-    {
-      role: "system",
-      content: `PROJETO:\n${JSON.stringify(projeto || {})}`
-    },
-
-    {
-      role: "system",
-      content: `ARQUIVOS:\n${JSON.stringify(arquivosContexto)}`
-    },
-
-    {
-      role: "user",
-      content: pergunta
-    }
-
+  model:"gpt-4.1",
+  temperature:0,
+  messages:[
+    {role:"system",content:PROMPT},
+    {role:"system",content:`PROJETO:\n${JSON.stringify(projeto || {})}`},
+    {role:"system",content:`ARQUIVOS:\n${JSON.stringify(arquivosContexto)}`},
+    {role:"user",content:pergunta}
   ]
-
 })
 
 let resposta = completion.choices[0].message.content
 
-/* ================= DETECTAR ALTERAÇÃO ================= */
+/* ================= SALVAR CONVERSA ================= */
+
+await supabase.from("dev_conversas").insert({
+  projeto: projetoNome,
+  role:"user",
+  mensagem: pergunta
+})
+
+/* ================= ALTERAÇÃO ================= */
 
 const matchAlterar = resposta.match(/ALTERAR_CODIGO_JSON:\s*(\{[\s\S]*\})/)
 
 if(matchAlterar){
 
-  try{
+  const json = JSON.parse(matchAlterar[1].replace(/```/g,""))
 
-    const json = JSON.parse(
-      matchAlterar[1]
-      .replace(/```json/g,"")
-      .replace(/```/g,"")
-      .trim()
-    )
+  const { data:old } = await supabase
+    .from("arquivos_projeto")
+    .select("*")
+    .eq("id", json.arquivo_id)
+    .single()
 
-    await supabase
-      .from("arquivos_projeto")
-      .update({
-        codigo: json.codigo_novo,
-        atualizado_em: new Date()
-      })
-      .eq("id", json.arquivo_id)
+  /* versionamento */
+  await supabase.from("dev_versions").insert({
+    arquivo_id: json.arquivo_id,
+    codigo_antigo: old?.codigo || "",
+    codigo_novo: json.codigo_novo,
+    descricao: json.descricao
+  })
 
-    return res.json({
-      tipo:"alteracao",
-      descricao: json.descricao
+  /* update */
+  await supabase
+    .from("arquivos_projeto")
+    .update({
+      codigo: json.codigo_novo,
+      atualizado_em: new Date()
     })
+    .eq("id", json.arquivo_id)
 
-  }catch(e){
-    console.error("Erro alteração:", e)
-  }
+  await supabase.from("dev_conversas").insert({
+    projeto: projetoNome,
+    role:"assistant",
+    mensagem: json.descricao
+  })
+
+  return res.json({
+    resposta: "🛠️ " + json.descricao,
+    preview: json.codigo_novo
+  })
 }
 
-/* ================= DETECTAR CRIAÇÃO ================= */
+/* ================= CRIAÇÃO ================= */
 
 const matchCriar = resposta.match(/CRIAR_ARQUIVO_JSON:\s*(\{[\s\S]*\})/)
 
 if(matchCriar){
 
-  try{
+  const json = JSON.parse(matchCriar[1].replace(/```/g,""))
 
-    const json = JSON.parse(
-      matchCriar[1]
-      .replace(/```json/g,"")
-      .replace(/```/g,"")
-      .trim()
-    )
+  await supabase.from("arquivos_projeto").insert({
+    projeto_id: projeto.id,
+    nome_arquivo: json.nome,
+    caminho: json.caminho,
+    linguagem: json.linguagem,
+    codigo: json.codigo
+  })
 
-    await supabase
-      .from("arquivos_projeto")
-      .insert({
-        projeto_id: projeto.id,
-        nome_arquivo: json.nome,
-        caminho: json.caminho,
-        linguagem: json.linguagem,
-        codigo: json.codigo
-      })
+  await supabase.from("dev_conversas").insert({
+    projeto: projetoNome,
+    role:"assistant",
+    mensagem: "Arquivo criado: " + json.nome
+  })
 
-    return res.json({
-      tipo:"criacao",
-      arquivo: json.nome
-    })
-
-  }catch(e){
-    console.error("Erro criação:", e)
-  }
+  return res.json({
+    resposta: "📦 Arquivo criado: " + json.nome,
+    preview: json.codigo
+  })
 }
 
 /* ================= RESPOSTA NORMAL ================= */
 
+let preview = null
+
+if(projeto){
+
+  const { data:ultimo } = await supabase
+    .from("arquivos_projeto")
+    .select("*")
+    .eq("projeto_id", projeto.id)
+    .order("atualizado_em",{ascending:false})
+    .limit(1)
+
+  if(ultimo && ultimo[0]){
+    preview = ultimo[0].codigo
+  }
+}
+
+await supabase.from("dev_conversas").insert({
+  projeto: projetoNome,
+  role:"assistant",
+  mensagem: resposta
+})
+
 return res.json({
-  tipo:"resposta",
-  resposta
+  resposta,
+  preview
 })
 
 }catch(e){
 
-console.error("ERRO GERAL:", e)
+console.error(e)
 
 return res.status(500).json({
   erro:"erro interno"
 })
 
 }
+
 }
