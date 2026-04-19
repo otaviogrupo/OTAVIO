@@ -4,7 +4,6 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Dev AI • Studio</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
@@ -17,47 +16,66 @@ font-family:Inter;
 display:flex;
 height:100vh;
 overflow:hidden;
+background:#0f172a;
 }
 
-/* CHAT */
+/* ================= CHAT ================= */
+
 .chat-area{
-width:35%;
+width:32%;
 min-width:320px;
-background:#111;
+background:#020617;
 color:#fff;
 display:flex;
 flex-direction:column;
+border-right:1px solid #1e293b;
+}
+
+.chat-header{
+padding:15px;
+font-weight:600;
+background:#020617;
+border-bottom:1px solid #1e293b;
 }
 
 .chat{
 flex:1;
 overflow:auto;
-padding:10px;
+padding:15px;
 display:flex;
 flex-direction:column;
-gap:10px;
+gap:12px;
 }
 
 .msg{
-padding:10px;
-border-radius:10px;
-max-width:80%;
+padding:12px;
+border-radius:12px;
+max-width:85%;
 font-size:14px;
+line-height:1.4;
 }
 
-.user{align-self:flex-end;background:#2563eb}
-.bot{align-self:flex-start;background:#222}
+.user{
+align-self:flex-end;
+background:#2563eb;
+}
+
+.bot{
+align-self:flex-start;
+background:#111827;
+}
 
 .input{
 display:flex;
-gap:5px;
-padding:10px;
-background:#000;
+gap:8px;
+padding:12px;
+background:#020617;
+border-top:1px solid #1e293b;
 }
 
 textarea{
 flex:1;
-height:40px;
+height:42px;
 border-radius:8px;
 border:none;
 padding:10px;
@@ -68,26 +86,26 @@ button{
 background:#2563eb;
 border:none;
 color:#fff;
-padding:10px;
+padding:10px 14px;
 border-radius:8px;
 cursor:pointer;
 }
 
-/* PREVIEW */
+/* ================= PREVIEW ================= */
+
 .preview-area{
 flex:1;
-background:#e5e7eb;
 display:flex;
 flex-direction:column;
+background:#e2e8f0;
 }
 
-/* TOPO */
 .preview-top{
 padding:10px;
 background:#fff;
 display:flex;
 gap:10px;
-border-bottom:1px solid #ddd;
+border-bottom:1px solid #ccc;
 }
 
 .preview-container{
@@ -98,30 +116,31 @@ align-items:center;
 padding:10px;
 }
 
-/* FRAME */
 .frame{
 border:1px solid #ccc;
 background:#fff;
 }
 
-/* MODOS */
+/* desktop */
 .frame.desktop{
 width:100%;
 height:100%;
 }
 
+/* mobile */
 .frame.mobile{
 width:375px;
 height:667px;
 border-radius:20px;
 overflow:hidden;
-box-shadow:0 10px 30px rgba(0,0,0,0.3);
+box-shadow:0 10px 40px rgba(0,0,0,0.3);
 }
 
-/* RESPONSIVO */
-@media(max-width:900px){
-.chat-area{width:100%}
-.preview-area{display:none}
+.status{
+font-size:12px;
+color:#64748b;
+margin-left:auto;
+align-self:center;
 }
 
 </style>
@@ -131,6 +150,10 @@ box-shadow:0 10px 30px rgba(0,0,0,0.3);
 
 <!-- CHAT -->
 <div class="chat-area">
+
+<div class="chat-header">
+💻 Dev AI • Agente N2
+</div>
 
 <div id="chat" class="chat"></div>
 
@@ -147,10 +170,13 @@ box-shadow:0 10px 30px rgba(0,0,0,0.3);
 <div class="preview-top">
 <button onclick="modo('desktop')">💻 Desktop</button>
 <button onclick="modo('mobile')">📱 Mobile</button>
+<div id="status" class="status">Pronto</div>
 </div>
 
 <div class="preview-container">
-  <iframe id="preview" class="frame desktop"></iframe>
+<iframe id="preview" class="frame desktop"
+sandbox="allow-scripts allow-forms allow-same-origin">
+</iframe>
 </div>
 
 </div>
@@ -159,7 +185,8 @@ box-shadow:0 10px 30px rgba(0,0,0,0.3);
 
 const TOKEN = "mercatto_admin_2026"
 
-/* CHAT */
+/* ================= CHAT ================= */
+
 function addMsg(role,text){
 
 const chat = document.getElementById("chat")
@@ -172,33 +199,55 @@ chat.appendChild(div)
 chat.scrollTop = chat.scrollHeight
 }
 
-/* MODO */
-function modo(tipo){
+/* ================= STATUS ================= */
 
-const iframe = document.getElementById("preview")
-iframe.className = "frame " + tipo
-
+function setStatus(txt){
+document.getElementById("status").innerText = txt
 }
 
-/* PREVIEW */
+/* ================= MODO ================= */
+
+function modo(tipo){
+const iframe = document.getElementById("preview")
+iframe.className = "frame " + tipo
+}
+
+/* ================= PREVIEW (BLINDADO) ================= */
+
 function atualizarPreview(html){
 
 const iframe = document.getElementById("preview")
 
-if(!iframe){
-  console.error("iframe não encontrado")
-  return
-}
+if(!iframe) return
+
+// 🔥 BLOQUEIO TOTAL DE REDIRECIONAMENTO
+html = html
+.replace(/window\.open\([^)]*\)/gi, "")
+.replace(/window\.location\s*=\s*[^;]+/gi, "")
+.replace(/location\.href\s*=\s*[^;]+/gi, "")
+.replace(/top\.location\s*=\s*[^;]+/gi, "")
+
+// 🔥 FORÇA BASE (evita quebrar caminhos)
+const base = `<base href="${location.origin}/">`
+
+const finalHTML = `
+<html>
+<head>${base}</head>
+<body>
+${html}
+</body>
+</html>
+`
 
 const doc = iframe.contentWindow.document
-
 doc.open()
-doc.write(html)
+doc.write(finalHTML)
 doc.close()
 
 }
 
-/* ENVIAR */
+/* ================= ENVIAR ================= */
+
 async function enviar(){
 
 const input = document.getElementById("msg")
@@ -209,10 +258,11 @@ if(!texto) return
 addMsg("user",texto)
 input.value=""
 
-/* loading */
+setStatus("Processando...")
+
 const loading = document.createElement("div")
-loading.className = "msg bot"
-loading.innerHTML = "⏳ Processando..."
+loading.className="msg bot"
+loading.innerHTML="⏳ Pensando..."
 document.getElementById("chat").appendChild(loading)
 
 try{
@@ -233,18 +283,20 @@ const data = await res.json()
 
 loading.remove()
 
-/* MOSTRA RESPOSTA */
 addMsg("bot", data.resposta || "Erro")
 
-/* ATUALIZA PREVIEW SEMPRE */
 if(data.preview){
-  atualizarPreview(data.preview)
+atualizarPreview(data.preview)
+setStatus("Preview atualizado")
+}else{
+setStatus("Sem preview")
 }
 
 }catch(e){
 
 loading.remove()
 addMsg("bot","❌ erro na API")
+setStatus("Erro")
 
 }
 
