@@ -3,332 +3,215 @@
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dev AI • N2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>Dev AI • Chat N2</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
 
-:root{
-  --bg:#f4f6f9;
-  --card:#fff;
-  --border:#e5e7eb;
-  --text:#111827;
-  --muted:#6b7280;
-  --primary:#2563eb;
-  --success:#22c55e;
-  --danger:#ef4444;
-  --radius:14px;
-}
-
 body{
-  margin:0;
-  font-family:Inter;
-  background:var(--bg);
+margin:0;
+font-family:Inter;
+background:#e5ddd5;
+height:100vh;
+display:flex;
+flex-direction:column;
 }
 
 .header{
-  padding:16px 24px;
-  font-weight:800;
-  font-size:20px;
-  background:#fff;
-  border-bottom:1px solid var(--border);
+background:#fff;
+padding:10px;
+display:flex;
+gap:10px;
+border-bottom:1px solid #ddd;
 }
 
-.container{
-  display:grid;
-  grid-template-columns: 280px 420px 1fr;
-  gap:16px;
-  padding:16px;
-  height:calc(100vh - 70px);
+.avatar{
+width:40px;height:40px;border-radius:50%;
+background:#2563eb;color:#fff;
+display:flex;align-items:center;justify-content:center;
+font-weight:600;
 }
-
-.card{
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:14px;
-  display:flex;
-  flex-direction:column;
-}
-
-input, select, textarea{
-  width:100%;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid var(--border);
-  margin-top:5px;
-  margin-bottom:10px;
-}
-
-textarea{
-  font-family:monospace;
-}
-
-.codigo{
-  height:100%;
-}
-
-button{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:600;
-}
-
-.btn-primary{ background:#2563eb; color:#fff }
-.btn-success{ background:#22c55e; color:#fff }
 
 .chat{
-  flex:1;
-  overflow:auto;
+flex:1;
+overflow:auto;
+padding:15px;
+display:flex;
+flex-direction:column;
+gap:10px;
 }
 
 .msg{
-  padding:10px;
-  border-radius:10px;
-  margin-bottom:10px;
-  font-size:13px;
+max-width:80%;
+padding:10px;
+border-radius:10px;
+font-size:14px;
 }
 
-.user{ background:#dbeafe }
-.bot{ background:#dcfce7 }
+.user{align-self:flex-end;background:#dcf8c6}
+.bot{align-self:flex-start;background:#fff}
 
-.log{
-  height:120px;
-  background:#000;
-  color:#0f0;
-  font-size:12px;
-  overflow:auto;
-  padding:8px;
-  border-radius:8px;
+.time{
+font-size:10px;
+color:#666;
+margin-top:5px;
+text-align:right;
 }
 
-.status{
-  margin-top:10px;
-  font-size:13px;
-  color:var(--muted);
+.input{
+display:flex;
+gap:8px;
+padding:10px;
+background:#f0f2f5;
+}
+
+textarea{
+flex:1;
+border-radius:20px;
+padding:10px;
+border:1px solid #ddd;
+resize:none;
+height:40px;
+}
+
+button{
+background:#2563eb;
+border:none;
+color:#fff;
+padding:10px;
+border-radius:20px;
+cursor:pointer;
+}
+
+.top-bar{
+display:flex;
+gap:10px;
+padding:10px;
+background:#f0f2f5;
+border-bottom:1px solid #ddd;
+}
+
+input{
+padding:8px;
+border-radius:8px;
+border:1px solid #ddd;
 }
 
 </style>
-
 </head>
+
 <body>
 
-<div class="header">💻 Dev AI • Agente N2</div>
-
-<div class="container">
-
-<!-- CHAT -->
-<div class="card">
-  <b>💬 Conversas</b>
-  <div class="chat" id="chat"></div>
+<div class="header">
+<div class="avatar">DEV</div>
+<div>
+<b>Agente Dev N2</b><br>
+<small>online</small>
+</div>
 </div>
 
-<!-- CONTROLE -->
-<div class="card">
-
-<label>Projeto</label>
-<input id="projeto">
-
-<label>Caminho</label>
-<input id="caminho">
-
-<label>Arquivo</label>
-<input id="arquivo">
-
-<label>Tipo</label>
-<select id="tipo">
-  <option value="js">JS</option>
-  <option value="html">HTML</option>
-  <option value="css">CSS</option>
-</select>
-
-<button class="btn-success" onclick="salvar()">Salvar Arquivo</button>
-
-<hr>
-
-<textarea id="pergunta" placeholder="Ex: corrige erro dessa api"></textarea>
-
-<button class="btn-primary" onclick="enviar()">Executar Agente</button>
-
-<div class="status" id="status"></div>
-
-<div class="log" id="log"></div>
-
+<div class="top-bar">
+<input id="projeto" placeholder="Projeto">
+<input id="arquivo" placeholder="Arquivo (opcional)">
 </div>
 
-<!-- CODIGO -->
-<div class="card">
-  <b>🧾 Código</b>
-  <textarea id="codigo" class="codigo"></textarea>
-</div>
+<div id="chat" class="chat"></div>
 
+<div class="input">
+<textarea id="msg" placeholder="Ex: corrige erro nessa api"></textarea>
+<button onclick="enviar()">Enviar</button>
 </div>
 
 <script>
 
-const supabase = window.supabase.createClient(
-  "https://juzsvgxbmnpkzwrystfl.supabase.co",
-  "sb_publishable_lJgMwPqFHtHvO55U9ZIBsQ_4r-Qjz69"
-)
+const TOKEN = "mercatto_admin_2026"
 
-const ADMIN_TOKEN = "mercatto_admin_2026"
-
-/* LOG */
-function log(msg){
-  const el = document.getElementById("log")
-  el.innerHTML += msg + "<br>"
-  el.scrollTop = el.scrollHeight
+function hora(){
+const d=new Date()
+return d.getHours()+":"+d.getMinutes()
 }
 
-/* STATUS */
-function status(msg){
-  document.getElementById("status").innerText = msg
+function addMsg(role,text){
+
+const chat=document.getElementById("chat")
+
+const div=document.createElement("div")
+div.className="msg "+(role==="user"?"user":"bot")
+
+div.innerHTML=`
+${text}
+<div class="time">${hora()}</div>
+`
+
+chat.appendChild(div)
+chat.scrollTop=chat.scrollHeight
 }
 
-/* SALVAR */
-async function salvar(){
+/* ================= AGENTE ================= */
 
-try{
-
-status("Salvando...")
-
-const nome = document.getElementById("projeto").value
-
-let { data:p } = await supabase
-  .from("projetos_n2")
-  .select("*")
-  .ilike("nome", `%${nome}%`)
-  .limit(1)
-
-if(!p || !p[0]){
-  const { data:n } = await supabase
-    .from("projetos_n2")
-    .insert({ nome })
-    .select()
-  p = n
-}
-
-await supabase.from("arquivos_projeto").insert({
-  projeto_id: p[0].id,
-  nome_arquivo: document.getElementById("arquivo").value,
-  caminho: document.getElementById("caminho").value,
-  linguagem: document.getElementById("tipo").value,
-  codigo: document.getElementById("codigo").value
-})
-
-status("✅ Salvo com sucesso")
-log("Arquivo salvo")
-
-}catch(e){
-  status("Erro")
-  log("ERRO: " + e.message)
-}
-
-}
-
-/* CHAT */
-async function carregarChat(){
-
-const projeto = document.getElementById("projeto").value
-if(!projeto) return
-
-const { data } = await supabase
-  .from("dev_conversas")
-  .select("*")
-  .eq("projeto", projeto)
-  .order("created_at",{ascending:true})
-  .limit(200)
-
-const chat = document.getElementById("chat")
-chat.innerHTML = ""
-
-data.forEach(m=>{
-  const div = document.createElement("div")
-  div.className = "msg " + (m.role === "user" ? "user" : "bot")
-  div.innerHTML = `<b>${m.role}</b><br>${m.mensagem}`
-  chat.appendChild(div)
-})
-
-chat.scrollTop = chat.scrollHeight
-
-}
-
-/* AGENTE */
 async function enviar(){
 
+const texto=document.getElementById("msg").value.trim()
+if(!texto) return
+
+const projeto=document.getElementById("projeto").value
+
+addMsg("user",texto)
+document.getElementById("msg").value=""
+
+/* typing */
+const typing=document.createElement("div")
+typing.className="msg bot"
+typing.innerHTML="Pensando..."
+document.getElementById("chat").appendChild(typing)
+
 try{
 
-status("Executando agente...")
-log("🚀 Enviando para API...")
-
-const projeto = document.getElementById("projeto").value
-const pergunta = document.getElementById("pergunta").value
-
-if(!projeto || !pergunta){
-  log("❌ Preencha projeto e pergunta")
-  status("Faltando dados")
-  return
-}
-
-const res = await fetch("/api/construtor",{
-  method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "Authorization":"Bearer " + ADMIN_TOKEN
-  },
-  body: JSON.stringify({
-    projeto,
-    pergunta
-  })
+const res=await fetch("/api/construtor",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+TOKEN
+},
+body:JSON.stringify({
+projeto,
+pergunta:texto
+})
 })
 
-if(!res.ok){
-  const text = await res.text()
-  log("❌ ERRO HTTP: " + text)
-  status("Erro na API")
-  return
+const data=await res.json()
+
+typing.remove()
+
+if(data.tipo==="alteracao"){
+addMsg("bot","🛠️ Código atualizado: "+data.descricao)
 }
 
-const data = await res.json()
-
-console.log("RESPOSTA:", data)
-
-if(data.erro){
-  log("❌ " + data.erro)
-  status("Erro")
-  return
+else if(data.tipo==="criacao"){
+addMsg("bot","📦 Novo arquivo criado: "+data.arquivo)
 }
 
-if(data.tipo === "alteracao"){
-  log("🛠️ Código atualizado: " + data.descricao)
+else{
+addMsg("bot",data.resposta || "Erro")
 }
-
-if(data.tipo === "criacao"){
-  log("📦 Novo arquivo: " + data.arquivo)
-}
-
-if(data.tipo === "resposta"){
-  log("🤖 " + data.resposta)
-}
-
-status("✅ Finalizado")
-
-setTimeout(carregarChat, 800)
 
 }catch(e){
-  console.error(e)
-  log("❌ ERRO: " + e.message)
-  status("Erro")
+typing.remove()
+addMsg("bot","❌ erro na API")
 }
 
 }
-/* AUTO REFRESH */
-setInterval(carregarChat, 3000)
+
+/* ENTER */
+document.getElementById("msg").addEventListener("keydown",e=>{
+if(e.key==="Enter" && !e.shiftKey){
+e.preventDefault()
+enviar()
+}
+})
 
 </script>
 
